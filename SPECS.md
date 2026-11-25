@@ -6,18 +6,27 @@
 
 ## 1. Objetivo
 
-<!--
-Una o dos frases: para quién es el modelo y qué decisión le ayuda a tomar.
-Pista: Núria Casals no quiere "un modelo con buen R²". ¿Qué hará el banco con cada tasación?
--->
+Dar a Banc Avellaner una **primera tasación automática** de cada vivienda que entra como garantía de una hipoteca en Barcelona y su área metropolitana, junto con una medida de cuánto puede equivocarse. Con ella, el departamento de riesgos decide **qué tasaciones acepta tal cual y cuáles manda revisar a un tasador**. Cada cifra tiene que poder explicarse variable a variable a un cliente o a un auditor.
+
+Lo que buscamos no es el mejor R². Buscamos un error en euros **menor que el de la tasación ingenua (€/m² mediano del barrio × superficie)**, con un intervalo de confianza que muestre que la mejora no es ruido, y saber en qué viviendas no conviene fiarse del modelo.
 
 ## 2. Usuarios y preguntas
 
-<!--
-- Usuario: quién usa el modelo y el cuadro de mando, cuándo y qué sabe.
-- Preguntas: las del encargo, numeradas (P1, P2…) y concretadas. Cada pantalla del cuadro
-  de mando responderá a una o más.
--->
+| Usuario | Cuándo lo usa | Qué sabe | Qué necesita |
+| --- | --- | --- | --- |
+| **Núria Casals**, directora de riesgos (usuaria principal) | Antes de aprobar el modelo para producción y en revisiones periódicas | Riesgo de crédito y mercado inmobiliario. No sabe de *machine learning* | Cifras de error en euros y en %, con su incertidumbre, y una recomendación clara de uso |
+| **Tasadores** del banco | Cuando revisan un caso que el modelo marca como dudoso | Saben tasar viviendas, pero no conocen el modelo | Ver por qué el modelo da ese precio a una vivienda concreta y en qué zonas o tipos suele fallar |
+| **Auditoría interna o supervisor** | En auditorías del proceso de concesión | Regulación y control. Piden trazabilidad | Qué se hizo con los datos y por qué, qué variables usa el modelo y qué no se puede concluir de él |
+
+**Preguntas de negocio**
+
+- **P1 · ¿Qué habéis hecho con los datos y por qué?** Problemas encontrados, estrategias que habéis probado, cuánto ha cambiado el error con cada una y qué habéis decidido. Incluye al menos una característica nueva creada por vosotros, y si ha servido o no.
+- **P2 · ¿Cuánto se equivoca?** Error medio en euros y en porcentaje, comparado con una tasación ingenua (el *baseline*), y con su intervalo de confianza: ¿la mejora es real o puede ser ruido?
+- **P3 · ¿Dónde falla?** Error por tipo de vivienda, por zona (distrito o municipio) y por rango de precio, y en el mapa. ¿Hay zonas o viviendas que tasa sistemáticamente de más o de menos?
+- **P4 · ¿Por qué tasa lo que tasa?** Qué variables pesan más y cómo se construye la tasación de una vivienda concreta, variable a variable.
+- **P5 · ¿Qué no podemos afirmar?** Qué dicen los coeficientes y qué no (un coeficiente no es el efecto de reformar el piso o de instalar un ascensor).
+- **P6 · ¿Lo pondríamos en producción?** Para qué viviendas sí, para cuáles no (por ejemplo, zonas o rangos de precio con mucho error) y qué haría falta para fiarse más. *Fuente: P2 y P3. Se responde en el resumen para la dirección de `README.md` y en la defensa, no en una pantalla propia.*
+
 
 ## 3. Datos de entrada y problemas
 
