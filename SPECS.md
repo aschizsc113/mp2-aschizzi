@@ -20,117 +20,77 @@ Lo que buscamos no es el mejor R². Buscamos un error en euros **menor que el de
 
 **Preguntas de negocio**
 
-- **P1 · ¿Qué habéis hecho con los datos y por qué?** Problemas encontrados, estrategias que habéis probado, cuánto ha cambiado el error con cada una y qué habéis decidido. Incluye al menos una característica nueva creada por vosotros, y si ha servido o no.
-- **P2 · ¿Cuánto se equivoca?** Error medio en euros y en porcentaje, comparado con una tasación ingenua (el *baseline*), y con su intervalo de confianza: ¿la mejora es real o puede ser ruido?
-- **P3 · ¿Dónde falla?** Error por tipo de vivienda, por zona (distrito o municipio) y por rango de precio, y en el mapa. ¿Hay zonas o viviendas que tasa sistemáticamente de más o de menos?
-- **P4 · ¿Por qué tasa lo que tasa?** Qué variables pesan más y cómo se construye la tasación de una vivienda concreta, variable a variable.
-- **P5 · ¿Qué no podemos afirmar?** Qué dicen los coeficientes y qué no (un coeficiente no es el efecto de reformar el piso o de instalar un ascensor).
-- **P6 · ¿Lo pondríamos en producción?** Para qué viviendas sí, para cuáles no (por ejemplo, zonas o rangos de precio con mucho error) y qué haría falta para fiarse más. *Fuente: P2 y P3. Se responde en el resumen para la dirección de `README.md` y en la defensa, no en una pantalla propia.*
+- **1 · ¿Qué habéis hecho con los datos y por qué?** Problemas encontrados, estrategias que habéis probado, cuánto ha cambiado el error con cada una y qué habéis decidido. Incluye al menos una característica nueva creada por vosotros, y si ha servido o no.
+- **2 · ¿Cuánto se equivoca?** Error medio en euros y en porcentaje, comparado con una tasación ingenua (el *baseline*), y con su intervalo de confianza: ¿la mejora es real o puede ser ruido?
+- **3 · ¿Dónde falla?** Error por tipo de vivienda, por zona (distrito o municipio) y por rango de precio, y en el mapa. ¿Hay zonas o viviendas que tasa sistemáticamente de más o de menos?
+- **4 · ¿Por qué tasa lo que tasa?** Qué variables pesan más y cómo se construye la tasación de una vivienda concreta, variable a variable.
+- **5 · ¿Qué no podemos afirmar?** Qué dicen los coeficientes y qué no (un coeficiente no es el efecto de reformar el piso o de instalar un ascensor).
+- **6 · ¿Lo pondríamos en producción?** Para qué viviendas sí, para cuáles no (por ejemplo, zonas o rangos de precio con mucho error) y qué haría falta para fiarse más. *Fuente: preguntas 2 y 3. Se responde en el resumen para la dirección de `README.md` y en la defensa, no en una pantalla propia.*
 
 
 ## 3. Datos de entrada y problemas
-
-<!--
-Los problemas de calidad que encontréis con notebooks/exploracion.ipynb. Sed concretos: qué columna,
-qué valor raro, cuántas filas (en entrenamiento y en test) y por qué importa para tasar.
-Hito de la sesión 12: al menos seis problemas documentados.
-
-La última columna dice en qué fase de §4 lo tratáis:
-1 · Limpieza, 2 · Transformaciones, 3 · Variables nuevas o (ninguna), si decidís no usar la columna.
-La fila P1 es un ejemplo: dejadla y seguid con P2, P3…
--->
 
 Lo encontramos con `notebooks/exploracion.ipynb`. Entrenamiento: 6.237 filas. Test: 4.002.
 
 | Id | Columna | Qué pasa (con cifras) | Por qué importa | Fase |
 | --- | --- | --- | --- | --- |
-| P1 | `estado_operacion` | 620 filas (10 %) son anuncios retirados, que no se vendieron. El test solo tiene ventas | Su precio es lo que se pedía, no lo que se pagó | 1 · Limpieza |
-| | | | | |
+| P1 | `estado_operacion` | 620 filas (10 %) son anuncios retirados, que no se vendieron. El test solo tiene ventas | Su precio es lo que se pedía, no lo que se pagó. Se quitan desde el train dataset! | 1 · Limpieza |
+| P2 | `precio` | 22 registros con precio < 30000€ y 4 con precio mayor que 3000000€ | Se consideran problematicos y se quitan desde el train dataset! | 1 · Limpieza |
+| P3 | `planta` | Valores distinto para las mismas plantas | Hay que normalizar los valores (minúsculas, sin tildes, sin espacios a los lados) y crear tres variables 0/1. Grupo "Ático": `atico`, `at` (334 filas tras la limpieza). Grupo "Bajo": `bajo`, `bj`, `planta baja`, `0` (689). Grupo "Casa": `casa` (59). El resto (plantas numeradas, `principal`/`pral`/`pr`, `entresuelo`/`entlo`/`entl.`/`en`, `-` y vacíos) vale 0 en las tres. | 3 · Variables nuevas |
+| P4 | `ascensor` | Valores distintos para SI/NO. Además hay 935 missing values. | Hay que normalizar transformar en 0 (NO) - 1 (SI). Imputa el valor 0 a los missing (me asumo el riesgo de introducir algun pequeño error, pero la mayoría de las veces será correcto!)| 2 · Transformación |
+| P5 | `parking` | 626 missing values y valores distintos para Si/Opcional/No | hay que normalizar y transformar en 0 (NO) - 1 (Opcional) y 2 (SI, Incluido). Imputa el valor 0 a los missing (me asumo el riesgo de introducir algun pequeño error, pero la mayoría de las veces será correcto!) | 2 · Transformación |
+| P6 | `superficie_construida` | Hay 21 ceros y 17 registros con más de 400 m² (hasta 1.590 m² en pisos y áticos) | Mediana y tope por tipo, calculados con las filas de entrenamiento de ese tipo que tienen entre 1 y 400 m². Los ceros pasan a la mediana de su tipo. Toda superficie mayor que el percentil 99 de su tipo pasa a ese percentil (no solo las de más de 400 m²), así que no hay saltos: un piso de 390 m² y uno de 410 m² quedan igual. Con los datos limpios los topes son: piso 196, ático 183, dúplex 253, casa 357 y estudio 61 m²; afectan a 73 filas (1,3 %). | 2 · Transformación |
+| P7 | `tipo` |  | Valores distinto para los mismos. Hay que normalizar. Chalet va con casa. Solo sirve para mediana y tope. | 2 · Transformación |
 
 ## 4. Estrategias y experimentos
 
-<!--
-Trabajáis en CUATRO FASES, en este orden. Lo que aceptáis en una fase es el punto de partida
-de la siguiente.
-
-  1. Limpieza: qué filas y qué valores son errores (el precio, la superficie…).
-  2. Transformaciones: pasar las variables a una forma que el modelo entienda
-     (logaritmos, categorías, textos convertidos en números).
-  3. Variables nuevas: crear variables que no están en los datos tal cual (al menos una).
-  4. Modelo: cambiar la regresión lineal por Ridge y AJUSTAR λ (alpha en scikit-learn),
-     probando varios valores (al menos cuatro, por ejemplo de 0,01 a 100).
-
-Cada fila se escribe ANTES DE EJECUTARLA: qué cambia respecto a su referencia (una sola cosa)
-y qué esperáis que pase (la hipótesis). Después, con experimentos.csv, rellenáis el resultado y la conclusión
-(aceptada o descartada, según vuestra regla de decisión).
-
-- Tipo: la fase. limpieza, transformacion, caracteristica o modelo (sin tildes: así aparece en
-  experimentos.csv). CM6 pide al menos una fila de cada fase y cuatro de modelo (cuatro valores de λ).
-- Referencia: el Id de la estrategia con la que se compara. Normalmente, la última aceptada: cuando
-  sepáis cuál es, cambiad "Última aceptada" por su Id, porque el agente necesita uno concreto.
-- MAE medio ± sd: columnas mae_medio y mae_sd de experimentos.csv.
-- Mejora media · particiones: columnas mejora_media (cuánto baja el MAE frente a la referencia, de media;
-  negativa si empeora) y particiones_mejor (en cuántas de las 5 mejora). Por ejemplo, "2.150 € · 5 de 5".
-
-La primera fila de cada fase es un ejemplo para arrancar: podéis quedárosla, cambiarla o borrarla.
--->
-
-**Regla de decisión** (escrita antes de ejecutar nada): <!-- Cuándo aceptáis una estrategia. Por ejemplo: "si baja el MAE de su referencia en al menos 4 de las 5 particiones y en al menos N € de media". ¿Qué hacéis si no se cumple? -->
+**Regla de decisión** (escrita antes de ejecutar nada): una estrategia se acepta si baja el MAE de su referencia en al menos 4 de las 5 particiones y en al menos 1.000 € de media. Si no lo cumple, se descarta, y la estrategia siguiente se compara con la última aceptada. Si la mejora media es menor de 1.000 €, aunque sea en 5 de 5, se descarta: no compensa complicar el modelo.
 
 Cómo leemos los resultados: `src.experimentos` da el MAE de cada partición (`mae_p1` … `mae_p5`). Comparamos cada estrategia con su referencia partición a partición, porque hay particiones más difíciles que otras para todas las estrategias a la vez.
 
-### Punto de partida (ejemplo resuelto)
+**Variables:** a partir de E2, los modelos solo usan variables de §3: `superficie_construida`, `ascensor`, `parking` y las tres de `planta`. `tipo` no entra en el modelo: solo sirve para corregir la superficie (P6). La mediana y el percentil 99 por tipo se calculan dentro del `Pipeline`, solo con las particiones de entrenamiento de cada vuelta.
+
+**Objetivo:** a partir de E2, todos los modelos predicen `log10(precio)` con `TransformedTargetRegressor` (`func=np.log10`, `inverse_func`: 10 elevado a la predicción). La tasación se devuelve en euros y el MAE se mide siempre en euros. E1 (ejemplo resuelto) sigue prediciendo el precio en euros.
+
+### Punto de partida
 
 | Id | Tipo | Qué cambia | Referencia | Hipótesis | MAE medio ± sd | Mejora media · particiones | Conclusión |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | E0 | baseline | €/m² mediano de la zona × superficie construida | — | — | | — | La tasación que hay que batir |
-| E1 | minimo | Regresión lineal con `superficie_construida`, `habitaciones`, `banos`, `distancia_centro_km` y `poblacion_zona`, sin transformar | — | _Vuestra hipótesis: ¿mejor o peor que E0? ¿Por qué?_ | | — | |
+| E1 | minimo | Regresión lineal con `superficie_construida`, `habitaciones`, `banos`, `distancia_centro_km` y `poblacion_zona`, sin transformar | — | Peor que E0: no sabe en qué barrio está la vivienda, solo a qué distancia del centro | | — | Solo como referencia (ejemplo resuelto) |
+| E2 | minimo | Regresión lineal de `log10(precio)` solo con `superficie_construida`, sin transformar (la única variable de §3 que ya es numérica) | — | Peor que E0 y que E1: sin ubicación, el m² vale lo mismo en Pedralbes que en Nou Barris. Con el log, el precio crece exponencialmente con la superficie, y las de 800-1.600 m² sin corregir pueden dar tasaciones absurdas | | — | Referencia de la cadena |
 
 ### Fase 1 · Limpieza
 
-<!--
-La limpieza del precio va en limpiar_objetivo() (AGENTS.md §3): decide fila a fila y se aplica antes de
-separar las particiones. No es una estrategia, porque cambia las filas con las que se mide todo: cuando
-la cambiéis, volved a ejecutar E0 y E1 y anotad sus cifras nuevas aquí.
-El resto de la limpieza (por ejemplo, la superficie) sí son estrategias, dentro del Pipeline.
--->
-
-| Id | Tipo | Qué cambia | Referencia | Hipótesis | MAE medio ± sd | Mejora media · particiones | Conclusión |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| L1 | limpieza | Modelo mínimo con la superficie corregida | E1 | Mejora: las superficies de 1.500 m² inflan la tasación | | | |
-| | | | | | | | |
+No hay estrategias en esta fase. P1 y P2 van en `limpiar_objetivo()`, que decide fila a fila: quita los anuncios retirados (620) y los precios < 30.000 € o > 3.000.000 €. Quedan 5.592 filas. Cada vez que cambie `limpiar_objetivo()` se vuelven a ejecutar E0, E1 y E2 y se anotan aquí sus cifras.
 
 ### Fase 2 · Transformaciones
 
 | Id | Tipo | Qué cambia | Referencia | Hipótesis | MAE medio ± sd | Mejora media · particiones | Conclusión |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| T1 | transformacion | Añade la zona como categoría | L1 | Mejora mucho: en Pedralbes el m² vale el triple que en Nou Barris | | | |
-| | | | | | | | |
+| T1 | transformacion | Superficie corregida (P6, P7): `tipo` normalizado (Chalet → Casa); ceros → mediana de su tipo; por encima del percentil 99 de su tipo → ese percentil | E2 | Mejora mucho: con el log, las superficies de 400 a 1.600 m² y las de 0 m² tuercen la pendiente y disparan las tasaciones | | | |
+| T2 | transformacion | Añade `ascensor` normalizado a 0/1, vacíos → 0 (P4) | Última aceptada | Mejora poco: el ascensor sube el precio, pero los 935 vacíos puestos a 0 añaden ruido | | | |
+| T3 | transformacion | Añade `parking` normalizado a 0 (No) / 1 (Opcional) / 2 (Sí, Incluido), vacíos → 0 (P5) | Última aceptada | Mejora poco: con plaza incluida, la vivienda suele ser más cara | | | |
 
 ### Fase 3 · Variables nuevas
 
 | Id | Tipo | Qué cambia | Referencia | Hipótesis | MAE medio ± sd | Mejora media · particiones | Conclusión |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| N1 | caracteristica | Añade la relación baños / habitaciones | Última aceptada | _Vuestra hipótesis_ | | | |
-| | | | | | | | |
+| N1 | caracteristica | Añade `es_atico`, `es_bajo` y `es_casa` a partir de `planta` normalizada, con los grupos de P3; `-`, vacíos y el resto de plantas → 0 en las tres | Última aceptada | Mejora: un ático vale más y un bajo menos que el resto de plantas | | | |
 
 ### Fase 4 · Modelo
 
-<!--
-Las mismas variables que la última estrategia aceptada en la fase 3; solo cambia el estimador.
-Una fila por valor de λ. Escribid antes cómo elegiréis λ y qué haréis si ningún Ridge mejora a la regresión lineal.
--->
+Las mismas variables que la última estrategia aceptada; solo cambia el estimador. Las variables se estandarizan (`StandardScaler`) dentro del `Pipeline` para que la penalización trate a todas por igual. En `experimentos.csv` hay una fila por combinación (35 en total: 7 Ridge, 7 Lasso y 21 ElasticNet): `m_ridge_<α>`, `m_lasso_<α>` y `m_enet_<α>_<l1_ratio>`. En esta tabla va una fila por familia, con el mejor valor.
+
+**Cómo elegimos:** en cada familia, el valor con el MAE medio más bajo en la validación cruzada (nunca en `validacion`). El mejor de las tres familias se compara con la última aceptada usando la regla de decisión. Si ninguno la cumple, el modelo final es la regresión lineal de la última aceptada.
 
 | Id | Tipo | Qué cambia | Referencia | Hipótesis | MAE medio ± sd | Mejora media · particiones | Conclusión |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| M1 | modelo | Ridge con λ = 0,01 | Última aceptada | Igual que la regresión lineal: λ muy pequeño | | | |
-| | | | | | | | |
+| M1 | modelo | Ridge con α ∈ {0,1; 1; 10; 100; 1.000; 10.000; 100.000} | Última aceptada | Con 6 variables y unas 3.600 filas por vuelta no hay sobreajuste: hasta α = 100 da lo mismo que la regresión lineal y con α ≥ 10.000 empeora | | | |
+| M2 | modelo | Lasso con α ∈ {0,0001; 0,0003; 0,001; 0,003; 0,01; 0,03; 0,1} | Última aceptada | Con α pequeños, igual que la regresión lineal. Al crecer, anula primero las variables débiles (ascensor, parking) y empeora poco a poco; hacia α ≈ 0,19 todos los coeficientes valen 0 | | | |
+| M3 | modelo | ElasticNet con α ∈ {0,0001; 0,0003; 0,001; 0,003; 0,01; 0,03; 0,1} × l1_ratio ∈ {0,1; 0,5; 0,9} | Última aceptada | Entre Ridge y Lasso, sin mejorar a ninguno de los dos: con tan pocas variables, combinar las penalizaciones no aporta | | | |
 
 ## 5. Salidas
-
-<!--
-Las del contrato (AGENTS.md §3) y las que añadáis vosotros (por ejemplo, tablas extra para el cuadro de mando).
--->
 
 | Fichero | Qué contiene | Lo escribe |
 | --- | --- | --- |
@@ -150,11 +110,11 @@ Continuad la numeración del ejemplo resuelto (R8, R9…) y escribid los de cada
 
 **Ejemplo resuelto: datos y validación**
 
-- R1. `cargar_entrenamiento()` devuelve las 6.237 filas de `train_set.csv` con la columna `particion` de `particiones.csv`; `cargar_test()` devuelve las 4.002 del test. No se limpia nada al cargar. `limpiar_objetivo()` todavía no quita ninguna fila.
+- R1. `cargar_entrenamiento()` devuelve las 6.237 filas de `train_set.csv` con la columna `particion` de `particiones.csv`; `cargar_test()` devuelve las 4.002 del test. No se limpia nada al cargar. Las filas que quita `limpiar_objetivo()` se definen en los requisitos de la fase 1.
 - R2. Baseline: la tasación de una vivienda es el €/m² mediano de las operaciones de entrenamiento de su zona (el barrio en Barcelona; el municipio fuera de Barcelona o si falta el barrio) × su `superficie_construida`. Si la zona no tiene operaciones, el €/m² mediano global; si la vivienda no tiene superficie (vacía o 0), el precio mediano de su zona.
 - R3. Validación cruzada: cada estrategia se entrena cinco veces, cada vez con cuatro de las particiones 1-5, y se mide el MAE en la que queda fuera. Las filas de `validacion` no se usan.
 - R4. El error en `validacion` se da con un intervalo de confianza del 95 % por bootstrap percentil de las filas (2.000 remuestras, semilla 2026).
-- R5. Modelo mínimo: regresión lineal con `superficie_construida`, `habitaciones`, `banos`, `distancia_centro_km` y `poblacion_zona`, sin transformar. Es la referencia de las estrategias.
+- R5. Modelo mínimo: regresión lineal con `superficie_construida`, `habitaciones`, `banos`, `distancia_centro_km` y `poblacion_zona`, sin transformar (E1). Se mantiene como referencia del ejemplo resuelto; la cadena de estrategias de §4 parte de E2.
 - R6. El modelo final se entrena con las particiones 1-5 y se mide una vez en `validacion`, junto al baseline entrenado con las mismas filas.
 - R7. El envío a Kaggle son las predicciones del modelo guardado para las 4.002 viviendas del test.
 
@@ -208,23 +168,17 @@ Lo que no se pueda testear (p. ej. si un gráfico se entiende) indicad cómo se 
 - CA3 (R3). La validación cruzada devuelve cinco errores, y cambiar el precio de las filas de `validacion` no los cambia.
 - CA4 (R4). Con precios reales 100, 200, 300 y 400 y predicciones 110, 190, 330 y 400, el MAE es 12,5, su intervalo lo contiene y repetir el cálculo da el mismo intervalo.
 
-**Vuestros criterios**
-
 ## 8. Fuera de alcance
 
 - Modelos no lineales (árboles, *ensembles*, redes, k vecinos): llegan en las sesiones 14 y 15.
 - Usar el test o sus precios públicos para entrenar o para elegir el modelo.
 
-<!-- Añadid lo que no vais a hacer, para que nadie (ni el agente) lo haga. -->
-
 ## 9. Preguntas abiertas
 
-<!-- Dudas pendientes de decidir. Cuando se decidan, pasan a "Decisiones". -->
+- ¿Qué significa "≥3 de tipo estrategia" en CM6? Hay que preguntarlo al profesorado.
 
 ## 10. Decisiones
 
-<!--
-Una línea por decisión: fecha · qué se decide · requisitos afectados · por qué, CON CIFRAS.
-Ejemplo:
-- 2026-12-01 · Aceptamos T1 (la zona como categoría) · R12 · Baja el MAE medio de N € a M € y mejora en 5 de 5 particiones.
--->
+- 2026-11-25 · A partir de E2 se predice `log10(precio)` · E2, M1-M3 · Los precios están muy sesgados (de 30.000 € a 3.000.000 €). Con el log, el error es más proporcional al precio de cada vivienda y las rejillas de α de Lasso y ElasticNet tienen sentido (α_max ≈ 0,19 en log10 frente a ≈ 185.000 en euros).
+- 2026-11-25 · El tope de superficie es el percentil 99 de cada tipo y se aplica a todas las superficies que lo superan · P6, T1 · Con "más de 400 m² → percentil 95", un piso de 390 m² se quedaba en 390 y uno de 410 m² pasaba a 150. El percentil se calcula sin los ceros ni las superficies de más de 400 m²: si no, los áticos de hasta 1.590 m² suben el tope de ático a 591 m². Afecta a 73 filas (1,3 %).
+- 2026-11-25 · Grupos de `planta`: Ático = `atico`, `at`; Bajo = `bajo`, `bj`, `planta baja`, `0`; Casa = `casa`; el resto vale 0 · P3, N1 · `0` es la planta baja. Principal y entresuelo no son bajos: quedan como cualquier otra planta.
