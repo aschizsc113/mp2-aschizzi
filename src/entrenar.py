@@ -27,6 +27,16 @@ def resumir(y_real: pd.Series, y_pred) -> dict:
             "rmse": intervalo_bootstrap(y_real, y_pred, rmse)}
 
 
+def guardar_predicciones(X_val: pd.DataFrame, y_val: pd.Series, pred_modelo, pred_baseline) -> None:
+    """Precio, tasaciones y columnas originales de cada vivienda de `validacion` (SPECS §5, R6).
+
+    Las columnas originales las usa el cuadro de mando (Dónde falla y Abrir la caja).
+    """
+    predicciones = pd.DataFrame({"precio": y_val, "prediccion": pred_modelo, "prediccion_baseline": pred_baseline},
+                                index=X_val.index)
+    pd.concat([predicciones, X_val], axis=1).to_csv(INFORMES / "predicciones_validacion.csv")
+
+
 def main() -> None:
     datos = limpiar_objetivo(cargar_entrenamiento())
     X_ent, y_ent = separar(datos[datos["particion"].isin(PARTICIONES_CV)])
@@ -47,8 +57,7 @@ def main() -> None:
     INFORMES.mkdir(exist_ok=True)
     joblib.dump(modelo, MODELOS / "modelo.joblib")
     (INFORMES / "metricas.json").write_text(json.dumps(metricas, indent=2, ensure_ascii=False))
-    pd.DataFrame({"precio": y_val, "prediccion": pred_modelo, "prediccion_baseline": pred_baseline},
-                 index=X_val.index).to_csv(INFORMES / "predicciones_validacion.csv")
+    guardar_predicciones(X_val, y_val, pred_modelo, pred_baseline)
 
     for nombre in ("baseline", "modelo"):
         m = metricas[nombre]["mae"]

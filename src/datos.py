@@ -34,16 +34,19 @@ def cargar_test() -> pd.DataFrame:
     return pd.read_csv(RAW / "test_set.csv", index_col="index")
 
 
+PRECIO_MINIMO = 30_000
+PRECIO_MAXIMO = 3_000_000
+
+
 def limpiar_objetivo(datos: pd.DataFrame) -> pd.DataFrame:
-    """Filas del entrenamiento que se usan para entrenar y para evaluar (contrato CM7).
+    """Quita anuncios retirados (P1) y precios fuera de [30.000, 3.000.000] € (P2) (R9, CM7).
 
-    Se aplica ANTES de separar las particiones, así que debe decidir FILA A FILA, con reglas
-    fijas que no dependan de otras filas (nada de medianas, percentiles ni medias del conjunto).
-    Puede quitar filas o corregir el precio de una fila; no puede añadir filas.
-
-    La plantilla no toca nada: qué hacer con los precios dudosos lo decide el equipo en SPECS.md.
+    Decide FILA A FILA con reglas fijas: no usa medianas, percentiles ni nada de otras filas.
+    Los precios de exactamente 30.000 € o 3.000.000 € se quedan. No cambia ninguna columna.
     """
-    return datos
+    vendida = datos["estado_operacion"] != "retirada"
+    precio_valido = datos[OBJETIVO].between(PRECIO_MINIMO, PRECIO_MAXIMO)
+    return datos[vendida & precio_valido]
 
 
 def separar(datos: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
